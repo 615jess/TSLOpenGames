@@ -8,19 +8,19 @@
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;600;700&display=swap');
 
   :root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --surface2: #21262d;
-    --border: #30363d;
-    --accent: #f0b429;
-    --accent2: #3fb950;
-    --accent3: #58a6ff;
-    --danger: #f85149;
-    --text: #e6edf3;
-    --text2: #8b949e;
-    --text3: #6e7681;
-    --cr: #f0b429;
-    --ar: #58a6ff;
+    --bg: #f5f7fa;
+    --surface: #ffffff;
+    --surface2: #eef1f6;
+    --border: #dde2ea;
+    --accent: #1a5fb4;
+    --accent2: #2a9d5c;
+    --accent3: #2563eb;
+    --danger: #dc2626;
+    --text: #1a1f2e;
+    --text2: #4b5563;
+    --text3: #9ca3af;
+    --cr: #b45309;
+    --ar: #1d4ed8;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -75,6 +75,34 @@
   .state-screen p  { font-size: 0.82rem; color: var(--text2); max-width: 400px; line-height: 1.6; }
   .state-screen .icon { font-size: 2.2rem; margin-bottom: 14px; }
 
+  /* ── Instructions banner ── */
+  .instructions {
+    max-width: 860px; margin: 20px auto 0; padding: 0 20px;
+  }
+  .instructions-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px; padding: 16px 20px;
+  }
+  .instructions-card h3 {
+    font-size: 0.82rem; font-weight: 700; color: var(--text); margin-bottom: 10px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .instructions-card ul {
+    list-style: none; padding: 0; display: flex; flex-direction: column; gap: 7px;
+  }
+  .instructions-card li {
+    font-size: 0.8rem; color: var(--text2); line-height: 1.5;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .instructions-card li .bullet {
+    color: var(--accent); font-weight: 700; flex-shrink: 0; margin-top: 1px;
+  }
+  .instructions-card .disclaimer {
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
+    font-size: 0.75rem; color: var(--text3); font-style: italic; line-height: 1.5;
+  }
+
   /* ── Board ── */
   #board { max-width: 860px; margin: 0 auto; padding: 24px 20px 0; display: none; }
 
@@ -84,7 +112,7 @@
   }
   .board-title { font-size: 1.05rem; font-weight: 700; }
   .count-badge {
-    background: var(--accent); color: #0d1117;
+    background: var(--accent); color: #ffffff;
     border-radius: 20px; padding: 2px 10px;
     font-size: 0.72rem; font-weight: 700; font-family: 'DM Mono', monospace;
   }
@@ -112,8 +140,8 @@
     gap: 10px; align-items: center;
     cursor: pointer; transition: border-color 0.15s, background 0.15s; user-select: none;
   }
-  .game-card:hover   { border-color: var(--accent); background: rgba(240,180,41,0.03); }
-  .game-card.selected{ border-color: var(--accent); background: rgba(240,180,41,0.07); }
+  .game-card:hover   { border-color: var(--accent); background: rgba(26,95,180,0.04); }
+  .game-card.selected{ border-color: var(--accent); background: rgba(26,95,180,0.08); }
 
   .game-check {
     width: 20px; height: 20px; border: 2px solid var(--border); border-radius: 5px;
@@ -136,8 +164,8 @@
     font-size: 0.67rem; font-weight: 700; font-family: 'DM Mono', monospace;
     padding: 2px 8px; border-radius: 4px; white-space: nowrap;
   }
-  .role-chip.cr { background: rgba(240,180,41,0.15); color: var(--cr); border: 1px solid rgba(240,180,41,0.3); }
-  .role-chip.ar { background: rgba(88,166,255,0.12); color: var(--ar); border: 1px solid rgba(88,166,255,0.25); }
+  .role-chip.cr { background: rgba(180,83,9,0.1); color: var(--cr); border: 1px solid rgba(180,83,9,0.25); }
+  .role-chip.ar { background: rgba(29,78,216,0.1); color: var(--ar); border: 1px solid rgba(29,78,216,0.2); }
   .fee-chip {
     font-size: 0.67rem; font-weight: 600; font-family: 'DM Mono', monospace;
     color: var(--accent2); padding: 2px 4px;
@@ -156,7 +184,7 @@
   .claim-inputs { display: flex; gap: 10px; flex: 1; flex-wrap: wrap; min-width: 0; }
   .claim-inputs input {
     flex: 1; min-width: 130px; max-width: 220px;
-    background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
     color: var(--text); font-family: 'Sora', sans-serif; font-size: 0.82rem;
     padding: 8px 12px; transition: border-color 0.15s;
   }
@@ -170,7 +198,7 @@
   }
   .btn:hover  { opacity: 0.88; transform: translateY(-1px); }
   .btn:active { transform: translateY(0); }
-  .btn.primary   { background: var(--accent); color: #0d1117; }
+  .btn.primary   { background: var(--accent); color: #ffffff; }
   .btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
 
   /* Modal */
@@ -188,7 +216,7 @@
   .modal h3 { font-size: 1rem; margin-bottom: 6px; }
   .modal p  { font-size: 0.8rem; color: var(--text2); margin-bottom: 16px; line-height: 1.5; }
   .preview-box {
-    background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px;
     font-size: 0.78rem; color: var(--text2); line-height: 1.7;
     white-space: pre-wrap; word-break: break-word;
     max-height: 220px; overflow-y: auto; font-family: 'DM Mono', monospace;
@@ -205,7 +233,6 @@
 <body>
 
 <header>
-  <div class="logo">⚽</div>
   <div>
     <h1>TSL Open Games Board</h1>
     <p>Middle Tennessee Region</p>
@@ -221,6 +248,21 @@
     </button>
   </div>
 </header>
+
+<!-- Instructions banner -->
+<div class="instructions" id="instructionsBanner" style="display:none">
+  <div class="instructions-card">
+    <h3>How to Request a Game Assignment</h3>
+    <ul>
+      <li><span class="bullet">1.</span> Browse the open slots below, grouped by venue. Each card shows the matchup, time, field, age group, role needed, and fee.</li>
+      <li><span class="bullet">2.</span> Select the game(s) you'd like by clicking the card(s) — you can pick more than one.</li>
+      <li><span class="bullet">3.</span> Enter your name and email in the bar at the bottom, then click <strong>Request Assignment(s)</strong>.</li>
+      <li><span class="bullet">4.</span> This will open a pre-filled email from your own email account to the assignor. Your information is not stored or shared online — it only appears in the email you send.</li>
+      <li><span class="bullet">5.</span> All confirmed assignments are entered into Squadi.</li>
+    </ul>
+    <p class="disclaimer">⚠ Assignment is not guaranteed — games may already have been covered by the time your request is received. I will do my best to stay on top of requests and communicate back to you as quickly as possible.</p>
+  </div>
+</div>
 
 <div id="loadingScreen" class="state-screen">
   <div class="spinner"></div>
@@ -251,7 +293,7 @@
     <input type="text"  id="claimName"  placeholder="Your name">
     <input type="email" id="claimEmail" placeholder="Your email">
   </div>
-  <button class="btn primary"    onclick="openClaimModal()">✉️ Claim</button>
+  <button class="btn primary"    onclick="openClaimModal()">✉️ Request Assignment(s)</button>
   <button class="btn secondary"  onclick="clearSelection()">Clear</button>
 </div>
 
@@ -263,7 +305,7 @@
     <div class="preview-box" id="emailPreview"></div>
     <div class="modal-footer">
       <button class="btn secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn primary"   onclick="sendClaim()">Open Email App →</button>
+      <button class="btn primary"   onclick="sendClaim()">Send Request →</button>
     </div>
   </div>
 </div>
@@ -358,6 +400,7 @@ function renderBoard(games) {
   });
 
   showScreen('board');
+  document.getElementById('instructionsBanner').style.display = 'block';
   updateClaimBar();
 }
 
@@ -440,7 +483,7 @@ function closeModal() { document.getElementById('claimModal').classList.remove('
 
 function buildEmailBody(refName, refEmail) {
   const selected = allGames.filter(gm => selectedIds.has(gm._id));
-  let body = `Hi,\n\nI'd like to claim the following game(s):\n\n`;
+  let body = `Hi,\n\nI'd like to request assignment for the following game(s):\n\n`;
   selected.forEach(gm => {
     const home    = gf(gm, 'home') || '—';
     const away    = gf(gm, 'away') || '—';
@@ -470,7 +513,7 @@ function buildEmailBody(refName, refEmail) {
 function sendClaim() {
   const name     = document.getElementById('claimName').value.trim();
   const refEmail = document.getElementById('claimEmail').value.trim();
-  const subject  = encodeURIComponent(`Game Claim – ${name}`);
+  const subject  = encodeURIComponent(`Assignment Request – ${name}`);
   const body     = encodeURIComponent(buildEmailBody(name, refEmail));
   window.location.href = `mailto:${CONFIG.assignorEmail}?subject=${subject}&body=${body}`;
   closeModal();
