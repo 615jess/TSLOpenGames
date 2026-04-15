@@ -197,6 +197,7 @@
   .btn:hover  { opacity: 0.88; transform: translateY(-1px); }
   .btn:active { transform: translateY(0); }
   .btn.primary   { background: var(--accent); color: #ffffff; }
+  .btn.text-btn  { background: #16a34a; color: #ffffff; }
   .btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
 
   /* Modal */
@@ -255,7 +256,7 @@
       <li><span class="bullet">1.</span> Browse the open slots below, grouped by venue. Each card shows the matchup, time, field, age group, role needed, and fee.</li>
       <li><span class="bullet">2.</span> Select the game(s) you'd like by clicking the card(s) — you can pick more than one.</li>
       <li><span class="bullet">3.</span> Enter your name and email in the bar at the bottom, then click <strong>Request Assignment(s)</strong>.</li>
-      <li><span class="bullet">4.</span> This will open a pre-filled email from your own email account to the assignor. Your information is not stored or shared online — it only appears in the email you send.</li>
+      <li><span class="bullet">4.</span> Choose <strong>Email</strong> or <strong>Text</strong> to send your request. This opens a pre-filled message from your own email or messaging app. Your information is not stored or shared online — it only appears in the message you send.</li>
       <li><span class="bullet">5.</span> All confirmed assignments are entered into Squadi.</li>
     </ul>
     <p class="disclaimer">⚠ Assignment is not guaranteed — games may already have been covered by the time your request is received. I will do my best to stay on top of requests and communicate back to you as quickly as possible.</p>
@@ -303,7 +304,8 @@
     <div class="preview-box" id="emailPreview"></div>
     <div class="modal-footer">
       <button class="btn secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn primary"   onclick="sendClaim()">Send Request →</button>
+      <button class="btn text-btn"  onclick="sendText()">💬 Text</button>
+      <button class="btn primary"   onclick="sendClaim()">✉️ Email</button>
     </div>
   </div>
 </div>
@@ -314,6 +316,7 @@
 const CONFIG = {
   apiUrl:        'https://script.google.com/macros/s/AKfycbwgPtGsMRDZx1OXkk8hQWsdiVsPGYA3oIc9TWMg-1B4g4lZ6-xXAGzLWUHH00zHjamxiw/exec',
   assignorEmail: 'jerickson@tnsoccer.org',
+  assignorPhone: '6292153231',
   boardTitle:    'TSL Middle Tennessee — Open Games',
 };
 
@@ -446,57 +449,49 @@ function buildCard(game) {
 function formatDayTime(dt) {
   if (!dt || !dt.trim()) return '';
   const s = String(dt).trim();
-
   const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-  function toDisplay(dateObj) {
-    const day = DAYS[dateObj.getDay()];
-    const mon = dateObj.getMonth() + 1;
-    const d   = dateObj.getDate();
-    let   h   = dateObj.getHours();
-    const min = String(dateObj.getMinutes()).padStart(2, '0');
-    const ap  = h >= 12 ? 'PM' : 'AM';
-    if (h > 12) h -= 12;
+  // Convert 24h integer to 12h display string
+  function to12h(h24, minStr) {
+    const ap = h24 >= 12 ? 'PM' : 'AM';
+    let h = h24 % 12;
     if (h === 0) h = 12;
-    return `${day}, ${mon}/${d} — ${h}:${min} ${ap}`;
+    return `${h}:${minStr} ${ap}`;
   }
 
-  // Pattern 1: MM/DD/YYYY H:MM:SS  (Google Sheets serial export, 24h with seconds)
-  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+  function dayLabel(yr, mo, dy, h24, minStr) {
+    // Build date using local constructor — no UTC shift
+    const d = new Date(yr, mo - 1, dy, h24, parseInt(minStr));
+    return `${DAYS[d.getDay()]}, ${mo}/${dy} — ${to12h(h24, minStr)}`;
+  }
+
+  // Pattern 1: MM/DD/YYYY HH:MM  or  MM/DD/YYYY HH:MM:SS  (with optional AM/PM)
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
   if (m) {
     let h = parseInt(m[4]);
-    const ampm = (m[7] || '').toUpperCase();
+    const ampm = (m[6] || '').toUpperCase();
     if (ampm === 'PM' && h !== 12) h += 12;
     else if (ampm === 'AM' && h === 12) h = 0;
-    const d = new Date(parseInt(m[3]), parseInt(m[1])-1, parseInt(m[2]), h, parseInt(m[5]));
-    if (!isNaN(d)) return toDisplay(d);
+    return dayLabel(parseInt(m[3]), parseInt(m[1]), parseInt(m[2]), h, m[5]);
   }
 
-  // Pattern 2: YYYY-MM-DD H:MM or YYYY-MM-DDTHH:MM
+  // Pattern 2: YYYY-MM-DD HH:MM  or  YYYY-MM-DDTHH:MM
   m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{1,2}):(\d{2})/);
   if (m) {
-    const d = new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]), parseInt(m[4]), parseInt(m[5]));
-    if (!isNaN(d)) return toDisplay(d);
+    return dayLabel(parseInt(m[1]), parseInt(m[2]), parseInt(m[3]), parseInt(m[4]), m[5]);
   }
 
-  // Pattern 3: native Date parse fallback
-  const native = new Date(s);
-  if (!isNaN(native)) return toDisplay(native);
-
-  // Pattern 4: time-only fallback — just show 12h time
-  m = s.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?/i);
+  // Pattern 3: time-only HH:MM — no date info, just show time
+  m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
   if (m) {
     let h = parseInt(m[1]);
     const ampm = (m[3] || '').toUpperCase();
     if (ampm === 'PM' && h !== 12) h += 12;
     else if (ampm === 'AM' && h === 12) h = 0;
-    const ap = h >= 12 ? 'PM' : 'AM';
-    if (h > 12) h -= 12;
-    if (h === 0) h = 12;
-    return `${h}:${m[2]} ${ap}`;
+    return to12h(h, m[2]);
   }
 
-  return s; // last resort: show raw value
+  return s; // last resort: show raw value as-is
 }
 
 // ── Selection ──────────────────────────────────────────────────────────────────
@@ -566,6 +561,50 @@ function sendClaim() {
   window.location.href = `mailto:${CONFIG.assignorEmail}?subject=${subject}&body=${body}`;
   closeModal();
   clearSelection();
+}
+
+function sendText() {
+  const name     = document.getElementById('claimName').value.trim();
+  const refEmail = document.getElementById('claimEmail').value.trim();
+  if (!name)  { alert('Please enter your name.');          return; }
+  if (!refEmail) { alert('Please enter your email address.'); return; }
+  const body = buildTextBody(name, refEmail);
+  const encoded = encodeURIComponent(body);
+  // sms: works on iOS and Android (& separator for body)
+  window.location.href = `sms:${CONFIG.assignorPhone}&body=${encoded}`;
+  closeModal();
+  clearSelection();
+}
+
+function buildTextBody(refName, refEmail) {
+  const selected = allGames.filter(gm => selectedIds.has(gm._id));
+  let body = `Assignment Request – ${refName}
+
+`;
+  selected.forEach(gm => {
+    const dt      = gf(gm, 'start date/time', 'startdatetime', 'datetime', 'date');
+    const venue   = gf(gm, 'venue');
+    const field   = gf(gm, 'field');
+    const age     = gf(gm, 'age group', 'agegroup');
+    const role    = gf(gm, 'open roles', 'openroles', 'roles');
+    const fee     = gf(gm, 'fee');
+    const daytime = dt ? formatDayTime(dt) : '';
+    const roleUpper3 = (role || '').trim().toUpperCase();
+    const displayRole3 = roleUpper3 === 'CR' ? 'Referee' : (roleUpper3.startsWith('AR') ? 'AR' : role);
+    const feeDisplay3 = fee ? (fee.startsWith('$') ? fee : '$' + fee) : '';
+
+    body += `• ${daytime}`;
+    if (venue)        body += ` | ${venue}`;
+    if (field)        body += `, ${field}`;
+    if (age)          body += ` | ${age}`;
+    if (displayRole3) body += ` | ${displayRole3}`;
+    if (feeDisplay3)  body += ` | ${feeDisplay3}`;
+    body += '
+';
+  });
+  body += `
+Email: ${refEmail}`;
+  return body;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
