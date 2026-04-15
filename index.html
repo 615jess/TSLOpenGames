@@ -537,7 +537,7 @@ function buildEmailBody(refName, refEmail) {
     const fee     = gf(gm, 'fee');
     const daytime = dt ? formatDayTime(dt) : '(no date)';
 
-    body += `• ${daytime}`;
+    body += `* ${daytime}`;
     if (venue)   body += `  |  ${venue}`;
     if (field)   body += `, ${field}`;
     if (age)     body += `  |  ${age}`;
@@ -556,7 +556,7 @@ function buildEmailBody(refName, refEmail) {
 function sendClaim() {
   const name     = document.getElementById('claimName').value.trim();
   const refEmail = document.getElementById('claimEmail').value.trim();
-  const subject  = encodeURIComponent(`Assignment Request – ${name}`);
+  const subject  = encodeURIComponent(`Assignment Request - ${name}`);
   const body     = encodeURIComponent(buildEmailBody(name, refEmail));
   window.location.href = `mailto:${CONFIG.assignorEmail}?subject=${subject}&body=${body}`;
   closeModal();
@@ -578,7 +578,7 @@ function sendText() {
 
 function buildTextBody(refName, refEmail) {
   const selected = allGames.filter(gm => selectedIds.has(gm._id));
-  let body = `Assignment Request – ${refName}
+  let body = `Assignment Request - ${refName}
 
 `;
   selected.forEach(gm => {
@@ -593,14 +593,13 @@ function buildTextBody(refName, refEmail) {
     const displayRole3 = roleUpper3 === 'CR' ? 'Referee' : (roleUpper3.startsWith('AR') ? 'AR' : role);
     const feeDisplay3 = fee ? (fee.startsWith('$') ? fee : '$' + fee) : '';
 
-    body += `• ${daytime}`;
+    body += `* ${daytime}`;
     if (venue)        body += ` | ${venue}`;
     if (field)        body += `, ${field}`;
     if (age)          body += ` | ${age}`;
     if (displayRole3) body += ` | ${displayRole3}`;
     if (feeDisplay3)  body += ` | ${feeDisplay3}`;
-    body += '
-';
+    body += '\n';
   });
   body += `
 Email: ${refEmail}`;
