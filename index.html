@@ -466,7 +466,7 @@ function formatDayTime(dt) {
   }
 
   // Pattern 1: MM/DD/YYYY HH:MM  or  MM/DD/YYYY HH:MM:SS  (with optional AM/PM)
-  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?/i);
   if (m) {
     let h = parseInt(m[4]);
     const ampm = (m[6] || '').toUpperCase();
@@ -482,13 +482,26 @@ function formatDayTime(dt) {
   }
 
   // Pattern 3: time-only HH:MM — no date info, just show time
-  m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  m = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?/i);
   if (m) {
     let h = parseInt(m[1]);
     const ampm = (m[3] || '').toUpperCase();
     if (ampm === 'PM' && h !== 12) h += 12;
     else if (ampm === 'AM' && h === 12) h = 0;
     return to12h(h, m[2]);
+  }
+
+  // Pattern 4: Full JS Date string e.g. "Sun Apr 19 2026 11:00:00 GMT-0500 (Central Daylight Time)"
+  // Extract date parts directly from the string — ignore timezone suffix
+  m = s.match(/^\w+\s+(\w+)\s+(\d{1,2})\s+(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})/);
+  if (m) {
+    const MONTHS = {Jan:1,Feb:2,Mar:3,Apr:4,May:5,Jun:6,Jul:7,Aug:8,Sep:9,Oct:10,Nov:11,Dec:12};
+    const mo  = MONTHS[m[1]];
+    const dy  = parseInt(m[2]);
+    const yr  = parseInt(m[3]);
+    const h24 = parseInt(m[4]);
+    const min = m[5];
+    if (mo) return dayLabel(yr, mo, dy, h24, min);
   }
 
   return s; // last resort: show raw value as-is
