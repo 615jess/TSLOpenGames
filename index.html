@@ -49,8 +49,6 @@
   header h1 { font-size: 1.05rem; font-weight: 700; }
   header p  { font-size: 0.72rem; color: var(--text2); margin-top: 1px; }
   .header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
-  .slot-count { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--text3); }
-  .slot-count strong { color: var(--accent); }
   .refresh-btn {
     background: none; border: 1px solid var(--border); border-radius: 6px;
     color: var(--text3); font-size: 0.72rem; padding: 5px 10px; cursor: pointer;
@@ -237,7 +235,6 @@
     <p>Middle Tennessee Region</p>
   </div>
   <div class="header-right">
-    <span class="slot-count" id="slotCount"></span>
     <button class="refresh-btn" id="refreshBtn" onclick="loadGames()">
       <svg id="refreshIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <path d="M23 4v6h-6M1 20v-6h6"/>
@@ -368,7 +365,6 @@ function renderBoard(games) {
 
   if (!games.length) {
     document.getElementById('countBadge').textContent = '0';
-    document.getElementById('slotCount').innerHTML = '';
     document.getElementById('venueGroups').innerHTML = `
       <div class="empty-state">
         
@@ -380,7 +376,6 @@ function renderBoard(games) {
   }
 
   document.getElementById('countBadge').textContent = games.length;
-  document.getElementById('slotCount').innerHTML = `<strong>${games.length}</strong> open slot${games.length !== 1 ? 's' : ''}`;
 
   // Group by venue
   const byVenue = new Map();
