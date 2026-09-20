@@ -536,7 +536,12 @@ function openClaimModal() {
     ? 'Sending this puts your request in front of the assignor. Younger-age AR slots are confirmed straight away; everything else is reviewed. You will see the result here — make a note of it, as there is no confirmation email.'
     : 'This opens your email app with a pre-filled message to the assignor. Review before sending.';
   document.getElementById('cancelBtn').textContent = 'Cancel';
+  // Email and text are the FALLBACK, not a choice: offering three buttons invited
+  // referees to send mail that nothing tracks. They appear only when the board cannot
+  // submit for them — a listing with no Game Key — which is the case they exist for.
   document.getElementById('submitBtn').style.display = canSubmit ? '' : 'none';
+  document.getElementById('emailBtn').style.display  = canSubmit ? 'none' : '';
+  document.getElementById('textBtn').style.display   = canSubmit ? 'none' : '';
   document.getElementById('emailPreview').textContent = buildEmailBody(name, email);
   document.getElementById('claimModal').classList.add('open');
 }
