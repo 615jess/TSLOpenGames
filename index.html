@@ -296,13 +296,14 @@
 <!-- Claim modal -->
 <div class="modal-overlay" id="claimModal">
   <div class="modal">
-    <h3>📬 Confirm Your Claim</h3>
-    <p>This opens your email app with a pre-filled message to the assignor. Review before sending.</p>
+    <h3 id="claimModalTitle">📬 Confirm Your Request</h3>
+    <p id="claimModalIntro">This opens your email app with a pre-filled message to the assignor. Review before sending.</p>
     <div class="preview-box" id="emailPreview"></div>
     <div class="modal-footer">
-      <button class="btn secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn text-btn"  onclick="sendText()">💬 Text</button>
-      <button class="btn primary"   onclick="sendClaim()">✉️ Email</button>
+      <button class="btn secondary" onclick="closeModal()"   id="cancelBtn">Cancel</button>
+      <button class="btn text-btn"  onclick="sendText()"     id="textBtn">💬 Text</button>
+      <button class="btn primary"   onclick="sendClaim()"    id="emailBtn">✉️ Email</button>
+      <button class="btn primary"   onclick="submitClaims()" id="submitBtn" style="display:none">✅ Send Request</button>
     </div>
   </div>
 </div>
@@ -320,6 +321,7 @@ const CONFIG = {
 // ── State ──────────────────────────────────────────────────────────────────────
 let allGames    = [];
 let selectedIds = new Set();
+let boardNonce  = null;
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 window.addEventListener('load', loadGames);
@@ -526,6 +528,15 @@ function openClaimModal() {
   const email = document.getElementById('claimEmail').value.trim();
   if (!name)  { alert('Please enter your name.');          return; }
   if (!email) { alert('Please enter your email address.'); return; }
+  const selected = allGames.filter(gm => selectedIds.has(gm._id));
+  const canSubmit = claimsSupported(selected);
+
+  document.getElementById('claimModalTitle').textContent = canSubmit ? '📬 Confirm Your Request' : '📬 Confirm Your Claim';
+  document.getElementById('claimModalIntro').textContent = canSubmit
+    ? 'Sending this puts your request in front of the assignor. Younger-age AR slots are confirmed straight away; everything else is reviewed. You will get an email either way.'
+    : 'This opens your email app with a pre-filled message to the assignor. Review before sending.';
+  document.getElementById('cancelBtn').textContent = 'Cancel';
+  document.getElementById('submitBtn').style.display = canSubmit ? '' : 'none';
   document.getElementById('emailPreview').textContent = buildEmailBody(name, email);
   document.getElementById('claimModal').classList.add('open');
 }
@@ -559,6 +570,118 @@ function buildEmailBody(refName, refEmail) {
   });
   body += `\nReferee: ${refName}\nEmail: ${refEmail}\n\nThank you!`;
   return body;
+}
+
+// ── Submitting on the board ────────────────────────────────────────────────────
+// The board can send a request straight to the Apps Script instead of opening the
+// referee's mail app. It only does so when the sheet carries a `Game Key` column: that
+// is the stable per-game id the script matches on, and a listing pushed by an older
+// assignor tool will not have it. Without it we fall back to email/text, which is why
+// both buttons stay.
+function claimKeyFor(game) {
+  return gf(game, 'game key', 'gamekey');
+}
+
+function claimsSupported(games) {
+  return games.length > 0 && games.every(claimKeyFor);
+}
+
+// The script hands out a short-lived nonce so a bot cannot POST blind at the /exec URL.
+// It is not authentication and does not pretend to be — see the assignor repo's
+// planning notes.
+async function getNonce() {
+  if (boardNonce) return boardNonce;
+  const res = await fetch(CONFIG.apiUrl + '?nonce=1');
+  const j = await res.json();
+  boardNonce = j.nonce || null;
+  return boardNonce;
+}
+
+function claimLine(game) {
+  const dt = gf(game, 'start date/time', 'startdatetime', 'datetime', 'date');
+  const role = (gf(game, 'open roles', 'openroles', 'roles') || '').trim().toUpperCase();
+  return [
+    dt ? formatDayTime(dt) : '(no date)',
+    gf(game, 'venue'),
+    gf(game, 'field') ? 'field ' + gf(game, 'field') : '',
+    role === 'CR' ? 'Referee' : 'AR',
+  ].filter(Boolean).join('  |  ');
+}
+
+async function submitClaims() {
+  const name  = document.getElementById('claimName').value.trim();
+  const email = document.getElementById('claimEmail').value.trim();
+  const selected = allGames.filter(gm => selectedIds.has(gm._id));
+  if (!selected.length) return;
+
+  const btn = document.getElementById('submitBtn');
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Sending…';
+
+  const lines = [];
+  let anySent = false;
+  try {
+    const nonce = await getNonce();
+    // Sequential, not parallel: the script serialises claims on one lock anyway, and a
+    // burst would trip its own rate limit.
+    for (const gm of selected) {
+      const role = (gf(gm, 'open roles', 'openroles', 'roles') || '').trim().toUpperCase();
+      let out;
+      try {
+        const res = await fetch(CONFIG.apiUrl, {
+          method: 'POST',
+          // text/plain avoids the CORS preflight Apps Script cannot answer.
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'claim',
+            nonce: nonce,
+            name: name,
+            email: email,
+            gameKey: claimKeyFor(gm),
+            role: role === 'CR' ? 'CR' : 'AR',
+            hp: '',
+          }),
+        });
+        out = await res.json();
+      } catch (err) {
+        out = { ok: false, error: 'could not reach the assignor system' };
+      }
+
+      if (out.ok) {
+        anySent = true;
+        lines.push((out.status === 'confirmed' ? '✅ CONFIRMED  ' : '📋 REQUESTED  ') + claimLine(gm));
+        if (out.status === 'confirmed' && out.matchId) {
+          lines.push('     You are on game #' + out.matchId + '. A confirmation email is on its way.');
+        } else {
+          lines.push('     The assignor will review this and email you.');
+        }
+      } else if (out.reason === 'taken') {
+        lines.push('⚠️ ALREADY FILLED  ' + claimLine(gm));
+        (out.alternatives || []).slice(0, 3).forEach(alt => {
+          lines.push('     Nearby that day: ' + [alt.when, alt.venue, alt.field ? 'field ' + alt.field : '',
+            alt.role === 'CR' ? 'Referee' : 'AR', alt.miles != null ? alt.miles + ' mi' : ''].filter(Boolean).join('  |  '));
+        });
+      } else {
+        lines.push('❌ ' + (out.error || 'could not be sent') + '  —  ' + claimLine(gm));
+      }
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+
+  // A nonce only lasts an hour or two; drop it so the next attempt fetches a fresh one.
+  boardNonce = null;
+
+  document.getElementById('claimModalTitle').textContent = 'Your request';
+  document.getElementById('claimModalIntro').textContent =
+    anySent ? 'Keep this for reference — a copy has been emailed to you.'
+            : 'Nothing was recorded. You can still email or text the assignor instead.';
+  document.getElementById('emailPreview').textContent = lines.join('\n');
+  document.getElementById('submitBtn').style.display = 'none';
+  document.getElementById('cancelBtn').textContent = 'Done';
+  if (anySent) clearSelection();
 }
 
 function sendClaim() {

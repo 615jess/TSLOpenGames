@@ -4,7 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A single-file static web app (`index.html`) that displays a public "open games" board for the Tennessee Soccer League (TSL) Middle Tennessee region. Referees browse uncovered game slots, select one or more, and send an assignment request to the assignor via a **pre-filled email (`mailto:`) or text (`sms:`)** opened in their own device's app. No backend receives the request and no referee data is ever persisted server-side — the user's name/email only exist inside the message they send.
+A single-file static web app (`index.html`) that displays a public "open games" board for the Tennessee Soccer League (TSL) Middle Tennessee region. Referees browse uncovered game slots, select one or more, and request them.
+
+There are **two request paths**, and which one is offered depends on the data:
+
+- **On-board submission (preferred).** The board POSTs the request to the Apps Script, which records it, may confirm it outright, and emails the referee. Offered **only when every selected row carries a `Game Key`** — the stable per-game id the script matches on. The referee's name and email are then stored in the Sheet, by the assignor, for the games they asked for.
+- **Pre-filled email (`mailto:`) or text (`sms:`) — the fallback.** The original path, kept because a listing pushed by an older assignor tool has no `Game Key`, and because the submission can fail. Nothing is persisted server-side; the name/email exist only inside the message the referee sends.
 
 ## Architecture
 
@@ -14,7 +19,8 @@ Data flow:
 1. On load, `loadGames()` fetches JSON from a Google Apps Script Web App endpoint (`CONFIG.apiUrl`). That script reads the assignor's Google Sheet of open slots and returns an array of row objects.
 2. Keys are lowercased/normalized; each row gets a `_id` for selection tracking.
 3. `renderBoard()` groups games by venue and renders cards. Selection state lives in the `selectedIds` Set.
-4. `buildEmailBody()` / `buildTextBody()` compose the request message; `sendClaim()` / `sendText()` hand off to `mailto:` / `sms:`.
+4. `buildEmailBody()` / `buildTextBody()` compose the fallback message; `sendClaim()` / `sendText()` hand off to `mailto:` / `sms:`.
+5. `submitClaims()` is the on-board path: it fetches a nonce (`?nonce=1`), then POSTs one `{action:'claim', nonce, name, email, gameKey, role, hp}` per selected game and renders the per-game outcome back into the modal.
 
 ### Key conventions
 
@@ -23,6 +29,15 @@ Data flow:
 - **`formatDayTime(dt)`** parses several date formats (US `MM/DD/YYYY`, ISO, time-only, and full JS `Date.toString()` output) and deliberately builds dates with the local-time constructor / string extraction to avoid UTC timezone shifting. Preserve that behavior when touching it — times must display in Central time as entered.
 - **Role display**: a sheet value of `CR` renders as "Referee"; anything else (e.g. `AR`) renders as "AR".
 - All sheet-derived strings are passed through `esc()` before insertion into HTML.
+
+### On-board submission
+
+- **`claimsSupported(games)` gates the whole feature** on every selected row having a `Game Key`. Never claim against `Match ID`: it is the short game number only when that is unique in the batch, so it can change between pushes and would aim a request at the wrong game. When the gate is false the modal shows only Email/Text, exactly as before — **keep that fallback working**, it is what serves an old listing or an outage.
+- **Requests are POSTed one at a time**, not in parallel: the script serialises them on a single lock and a burst trips its own rate limit.
+- **`Content-Type: text/plain`** is deliberate — it avoids the CORS preflight Apps Script cannot answer. Do not "fix" it to `application/json`.
+- **The nonce is not authentication.** It only stops a script POSTing blind at the `/exec` URL; anyone who loads the board has one. It is dropped after each submission so the next attempt fetches a fresh one.
+- **Every outcome is shown, including failure.** A game already filled reports as such and lists nearby same-day alternatives the script returned; a network error says so. Silence would leave a referee believing they have a game they do not have.
+- The script decides what auto-confirms (younger-age AR slots) and what waits for the assignor. The board only reports what came back — **do not reimplement that rule here**, it lives in the Apps Script.
 
 ## Deployment
 
