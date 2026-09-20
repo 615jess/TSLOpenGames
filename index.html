@@ -533,7 +533,7 @@ function openClaimModal() {
 
   document.getElementById('claimModalTitle').textContent = canSubmit ? '📬 Confirm Your Request' : '📬 Confirm Your Claim';
   document.getElementById('claimModalIntro').textContent = canSubmit
-    ? 'Sending this puts your request in front of the assignor. Younger-age AR slots are confirmed straight away; everything else is reviewed. You will get an email either way.'
+    ? 'Sending this puts your request in front of the assignor. Younger-age AR slots are confirmed straight away; everything else is reviewed. You will see the result here — make a note of it, as there is no confirmation email.'
     : 'This opens your email app with a pre-filled message to the assignor. Review before sending.';
   document.getElementById('cancelBtn').textContent = 'Cancel';
   document.getElementById('submitBtn').style.display = canSubmit ? '' : 'none';
@@ -650,12 +650,21 @@ async function submitClaims() {
 
       if (out.ok) {
         anySent = true;
-        lines.push((out.status === 'confirmed' ? '✅ CONFIRMED  ' : '📋 REQUESTED  ') + claimLine(gm));
-        if (out.status === 'confirmed' && out.matchId) {
-          lines.push('     You are on game #' + out.matchId + '. A confirmation email is on its way.');
-        } else {
-          lines.push('     The assignor will review this and email you.');
-        }
+        // Report the game the script ALLOCATED, not the card that was clicked. Several
+        // near-identical games can be advertised as one listing, so the game number and
+        // field that come back are not always the ones on screen — and with no
+        // confirmation email any more, this line is the referee's only record.
+        const got = [
+          out.when ? formatDayTime(out.when) : '',
+          out.venue,
+          out.field ? 'field ' + out.field : '',
+          out.ageGroup,
+          out.role === 'CR' ? 'Referee' : 'AR',
+        ].filter(Boolean).join('  |  ');
+        lines.push((out.status === 'confirmed' ? '✅ CONFIRMED  ' : '📋 REQUESTED  ') + got);
+        lines.push(out.status === 'confirmed'
+          ? '     Game #' + (out.matchId || '?') + ' — you are on this one. Please make a note of it.'
+          : '     Game #' + (out.matchId || '?') + ' — the assignor will review this and get back to you.');
       } else if (out.reason === 'taken') {
         lines.push('⚠️ ALREADY FILLED  ' + claimLine(gm));
         (out.alternatives || []).slice(0, 3).forEach(alt => {
@@ -676,7 +685,7 @@ async function submitClaims() {
 
   document.getElementById('claimModalTitle').textContent = 'Your request';
   document.getElementById('claimModalIntro').textContent =
-    anySent ? 'Keep this for reference — a copy has been emailed to you.'
+    anySent ? 'Please make a note of this — you will not get a confirmation email. We will only contact you if something changes.'
             : 'Nothing was recorded. You can still email or text the assignor instead.';
   document.getElementById('emailPreview').textContent = lines.join('\n');
   document.getElementById('submitBtn').style.display = 'none';

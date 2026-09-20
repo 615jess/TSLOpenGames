@@ -8,7 +8,7 @@ A single-file static web app (`index.html`) that displays a public "open games" 
 
 There are **two request paths**, and which one is offered depends on the data:
 
-- **On-board submission (preferred).** The board POSTs the request to the Apps Script, which records it, may confirm it outright, and emails the referee. Offered **only when every selected row carries a `Game Key`** — the stable per-game id the script matches on. The referee's name and email are then stored in the Sheet, by the assignor, for the games they asked for.
+- **On-board submission (preferred).** The board POSTs the request to the Apps Script, which records it and may confirm it outright. Offered **only when every selected row carries a `Game Key`** — the stable per-game id the script matches on. The referee's name and email are then stored in the Sheet, by the assignor, for the games they asked for.
 - **Pre-filled email (`mailto:`) or text (`sms:`) — the fallback.** The original path, kept because a listing pushed by an older assignor tool has no `Game Key`, and because the submission can fail. Nothing is persisted server-side; the name/email exist only inside the message the referee sends.
 
 ## Architecture
@@ -38,6 +38,7 @@ Data flow:
 - **The nonce is not authentication.** It only stops a script POSTing blind at the `/exec` URL; anyone who loads the board has one. It is dropped after each submission so the next attempt fetches a fresh one.
 - **Every outcome is shown, including failure.** A game already filled reports as such and lists nearby same-day alternatives the script returned; a network error says so. Silence would leave a referee believing they have a game they do not have.
 - The script decides what auto-confirms (younger-age AR slots) and what waits for the assignor. The board only reports what came back — **do not reimplement that rule here**, it lives in the Apps Script.
+- **There is no confirmation email, by design** — one mail per request was too much mail. The modal is therefore the referee's only record, and it must say so. It also reports the game the script **allocated**, taken from the response, not the card that was clicked: several near-identical games can be advertised as one listing, so the game number and even the field that come back may differ from what is on screen.
 
 ## Deployment
 
