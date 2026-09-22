@@ -533,7 +533,7 @@ function openClaimModal() {
 
   document.getElementById('claimModalTitle').textContent = canSubmit ? '📬 Confirm Your Request' : '📬 Confirm Your Claim';
   document.getElementById('claimModalIntro').textContent = canSubmit
-    ? 'Sending this puts your request in front of the assignor. Younger-age AR slots are confirmed straight away; everything else is reviewed. You will see the result here — make a note of it, as there is no confirmation email.'
+    ? 'This sends your request to the assignor. You will see the result here, and they will email you once they have decided.'
     : 'This opens your email app with a pre-filled message to the assignor. Review before sending.';
   document.getElementById('cancelBtn').textContent = 'Cancel';
   // Email and text are the FALLBACK, not a choice: offering three buttons invited
@@ -625,7 +625,7 @@ async function submitClaims() {
   btn.textContent = '⏳ Sending…';
 
   const lines = [];
-  let anySent = false;
+  let anySent = false, anyConfirmed = false, anyPending = false, anyDuplicate = false;
   try {
     const nonce = await getNonce();
     // Sequential, not parallel: the script serialises claims on one lock anyway, and a
@@ -655,6 +655,7 @@ async function submitClaims() {
 
       if (out.ok) {
         anySent = true;
+        if (out.status === 'confirmed') anyConfirmed = true; else anyPending = true;
         // Report the game the script ALLOCATED, not the card that was clicked. Several
         // near-identical games can be advertised as one listing, so the game number and
         // field that come back are not always the ones on screen — and with no
@@ -668,14 +669,23 @@ async function submitClaims() {
         ].filter(Boolean).join('  |  ');
         lines.push((out.status === 'confirmed' ? '✅ CONFIRMED  ' : '📋 REQUESTED  ') + got);
         lines.push(out.status === 'confirmed'
-          ? '     Game #' + (out.matchId || '?') + ' — you are on this one. Please make a note of it.'
-          : '     Game #' + (out.matchId || '?') + ' — the assignor will review this and get back to you.');
+          ? '     Game #' + (out.matchId || '?') + ' — this one is yours.'
+          : '     Game #' + (out.matchId || '?') + ' — the assignor will email you once they have decided.');
       } else if (out.reason === 'taken') {
-        lines.push('⚠️ ALREADY FILLED  ' + claimLine(gm));
-        (out.alternatives || []).slice(0, 3).forEach(alt => {
-          lines.push('     Nearby that day: ' + [alt.when, alt.venue, alt.field ? 'field ' + alt.field : '',
-            alt.role === 'CR' ? 'Referee' : 'AR', alt.miles != null ? alt.miles + ' mi' : ''].filter(Boolean).join('  |  '));
-        });
+        lines.push('⚠️ ALREADY TAKEN  ' + claimLine(gm));
+        const alts = (out.alternatives || []).slice(0, 3);
+        if (alts.length) {
+          lines.push('     Still open that day — go back and pick one:');
+          // Same friendly date format as the line above it; the raw sheet timestamp read
+          // as a different kind of thing entirely.
+          alts.forEach(alt => lines.push('       ' + [alt.when ? formatDayTime(alt.when) : '', alt.venue,
+            alt.field ? 'field ' + alt.field : '', alt.role === 'CR' ? 'Referee' : 'AR',
+            alt.miles != null ? alt.miles + ' mi away' : ''].filter(Boolean).join('  |  ')));
+        }
+      } else if (/already claimed/i.test(out.error || '')) {
+        anyDuplicate = true;
+        lines.push('ℹ️ ALREADY ASKED FOR  ' + claimLine(gm));
+        lines.push('     You have a request in for this one already — nothing more to do.');
       } else {
         lines.push('❌ ' + (out.error || 'could not be sent') + '  —  ' + claimLine(gm));
       }
@@ -690,8 +700,11 @@ async function submitClaims() {
 
   document.getElementById('claimModalTitle').textContent = 'Your request';
   document.getElementById('claimModalIntro').textContent =
-    anySent ? 'Please make a note of this — you will not get a confirmation email. We will only contact you if something changes.'
-            : 'Nothing was recorded. You can still email or text the assignor instead.';
+    anyPending && anyConfirmed ? 'Some of these are yours already; the rest are with the assignor, who will email you. Make a note of the confirmed ones — there is no confirmation email.'
+    : anyPending ? 'Your request is in. The assignor will email you once they have decided — usually the same day.'
+    : anyConfirmed ? 'These are yours. Make a note of them now — there is no confirmation email.'
+    : anyDuplicate ? 'You had already asked for this one, so nothing changed. Your original request still stands.'
+    : 'Nothing was recorded, so you are not down for anything. Close this and pick another game.';
   document.getElementById('emailPreview').textContent = lines.join('\n');
   document.getElementById('submitBtn').style.display = 'none';
   document.getElementById('cancelBtn').textContent = 'Done';
