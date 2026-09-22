@@ -578,6 +578,11 @@ function buildEmailBody(refName, refEmail) {
 }
 
 // ── Submitting on the board ────────────────────────────────────────────────────
+// What a referee is told once a request is recorded. It is the assignor's own wording:
+// it promises a review rather than an email, and points at Assignr, which is where the
+// assignment actually appears.
+const PENDING_NOTE = "Your request is in. I'll review it and make sure the spot is still open. Keep an eye on Assignr for the assignment. If the spot is gone, I will look for a similar position at the same time and location/venue.";
+
 // The board can send a request straight to the Apps Script instead of opening the
 // referee's mail app. It only does so when the sheet carries a `Game Key` column: that
 // is the stable per-game id the script matches on, and a listing pushed by an older
@@ -670,7 +675,7 @@ async function submitClaims() {
         lines.push((out.status === 'confirmed' ? '✅ CONFIRMED  ' : '📋 REQUESTED  ') + got);
         lines.push(out.status === 'confirmed'
           ? '     Game #' + (out.matchId || '?') + ' — this one is yours.'
-          : '     Game #' + (out.matchId || '?') + ' — the assignor will email you once they have decided.');
+          : '     Game #' + (out.matchId || '?') + " — I'll review this one.");
       } else if (out.reason === 'taken') {
         lines.push('⚠️ ALREADY TAKEN  ' + claimLine(gm));
         const alts = (out.alternatives || []).slice(0, 3);
@@ -700,8 +705,8 @@ async function submitClaims() {
 
   document.getElementById('claimModalTitle').textContent = 'Your request';
   document.getElementById('claimModalIntro').textContent =
-    anyPending && anyConfirmed ? 'Some of these are yours already; the rest are with the assignor, who will email you. Make a note of the confirmed ones — there is no confirmation email.'
-    : anyPending ? 'Your request is in. The assignor will email you once they have decided — usually the same day.'
+    anyPending && anyConfirmed ? 'Some of these are already yours — make a note of those, there is no confirmation email. ' + PENDING_NOTE
+    : anyPending ? PENDING_NOTE
     : anyConfirmed ? 'These are yours. Make a note of them now — there is no confirmation email.'
     : anyDuplicate ? 'You had already asked for this one, so nothing changed. Your original request still stands.'
     : 'Nothing was recorded, so you are not down for anything. Close this and pick another game.';
