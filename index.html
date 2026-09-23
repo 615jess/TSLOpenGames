@@ -115,7 +115,8 @@
     padding: 0 14px;
     font-size: 0.85rem;
   }
-  .league-filter label { display: flex; align-items: center; gap: 8px; color: #64748b; }
+  .league-filter { display: flex; gap: 14px; flex-wrap: wrap; }
+  .league-filter label { display: flex; align-items: center; gap: 8px; color: #64748b; flex: 1 1 220px; }
   .league-filter select {
     flex: 1;
     padding: 7px 9px;
@@ -343,6 +344,10 @@ let boardNonce  = null;
 // A league filter, so a referee can be sent to just the games they are ready for —
 // ?league=JDL is a sub-board without a second deployment to maintain.
 let leagueFilter = '';
+// Same idea for a side of town. The value is computed by the assignor's tool from its
+// region table and published as a column, so this page never has to know a city or a
+// venue name — only which bucket a game already belongs to.
+let areaFilter = '';
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 window.addEventListener('load', loadGames);
@@ -361,6 +366,15 @@ async function loadGames() {
       return obj;
     });
     // A ?league= link wins on first load; after that the picker is in charge.
+    if (areaFilter === '') {
+      const wantedArea = new URLSearchParams(location.search).get('area');
+      if (wantedArea) {
+        const areas = [...new Set(games.map(g => gf(g, 'area')).filter(Boolean))];
+        areaFilter = areas.filter(a => a.toLowerCase() === wantedArea.trim().toLowerCase())[0]
+                  || areas.filter(a => a.toLowerCase().includes(wantedArea.trim().toLowerCase()))[0]
+                  || '';   // unknown area shows everything, never an empty board
+      }
+    }
     if (leagueFilter === '') {
       const wanted = new URLSearchParams(location.search).get('league');
       if (wanted) {
@@ -394,27 +408,42 @@ async function loadGames() {
 // Built from whatever is actually on the board, so a new competition needs no code
 // change. Hidden entirely when every game is the same league — a filter with one option
 // is just clutter.
-function renderLeaguePicker(games) {
+// Both pickers are built from whatever is on the board, so a new competition or area
+// needs no code change here, and each hides itself when it has fewer than two choices —
+// a filter with one option is just clutter.
+function renderFilters(games) {
   const box = document.getElementById('leagueFilter');
   if (!box) return;
-  const leagues = [...new Set(games.map(g => gf(g, 'league')).filter(Boolean))].sort();
-  if (leagues.length < 2) { box.style.display = 'none'; return; }
+
+  const one = (field, label, current, counted) => {
+    const values = [...new Set(counted.map(g => gf(g, field)).filter(Boolean))].sort();
+    if (values.length < 2) return '';
+    const counts = {};
+    counted.forEach(g => { const v = gf(g, field); if (v) counts[v] = (counts[v] || 0) + 1; });
+    return `<label>${label}
+      <select data-filter="${field}">
+        <option value="">All (${counted.length})</option>
+        ${values.map(v => `<option value="${esc(v)}"${v === current ? ' selected' : ''}>${esc(v)} (${counts[v]})</option>`).join('')}
+      </select></label>`;
+  };
+
+  // Each picker counts against what the OTHER filter leaves, so the numbers describe
+  // what clicking would actually show rather than the whole board.
+  const forArea = leagueFilter ? games.filter(g => gf(g, 'league') === leagueFilter) : games;
+  const forLeague = areaFilter ? games.filter(g => gf(g, 'area') === areaFilter) : games;
+
+  const html = one('area', 'Area', areaFilter, forArea) + one('league', 'Competition', leagueFilter, forLeague);
+  if (!html) { box.style.display = 'none'; return; }
   box.style.display = '';
+  box.innerHTML = html;
 
-  const counts = {};
-  games.forEach(g => { const l = gf(g, 'league'); if (l) counts[l] = (counts[l] || 0) + 1; });
-
-  box.innerHTML = `
-    <label>Competition
-      <select id="leagueSelect">
-        <option value="">All (${games.length})</option>
-        ${leagues.map(l => `<option value="${esc(l)}"${l === leagueFilter ? ' selected' : ''}>${esc(l)} (${counts[l]})</option>`).join('')}
-      </select>
-    </label>`;
-  document.getElementById('leagueSelect').addEventListener('change', e => {
-    leagueFilter = e.target.value;
-    clearSelection();
-    renderBoard(allGames);
+  box.querySelectorAll('select[data-filter]').forEach(sel => {
+    sel.addEventListener('change', e => {
+      if (sel.dataset.filter === 'area') areaFilter = e.target.value;
+      else leagueFilter = e.target.value;
+      clearSelection();
+      renderBoard(allGames);
+    });
   });
 }
 
@@ -431,10 +460,9 @@ function gf(game, ...keys) {
 // ── Render board ───────────────────────────────────────────────────────────────
 function renderBoard(games) {
   allGames = games;
-  renderLeaguePicker(games);
-  if (leagueFilter) {
-    games = games.filter(g => gf(g, 'league') === leagueFilter);
-  }
+  renderFilters(games);
+  if (areaFilter)   games = games.filter(g => gf(g, 'area') === areaFilter);
+  if (leagueFilter) games = games.filter(g => gf(g, 'league') === leagueFilter);
   selectedIds.clear();
 
   document.getElementById('boardTitle').textContent = CONFIG.boardTitle;
@@ -486,6 +514,7 @@ function buildCard(game) {
   const field   = gf(game, 'field');
   const age     = gf(game, 'age group', 'agegroup');
   const league  = gf(game, 'league');
+  const area    = gf(game, 'area');
   const matchId = gf(game, 'match id', 'matchid');
   const role    = gf(game, 'open roles', 'openroles', 'roles');
   const fee     = gf(game, 'fee');
@@ -509,6 +538,7 @@ function buildCard(game) {
         ${field    ? `<span class="meta-item">${esc(field)}</span>`   : ''}
         ${age      ? `<span class="meta-item">${esc(age)}</span>`     : ''}
         ${league   ? `<span class="meta-item">${esc(league)}</span>`  : ''}
+        ${area     ? `<span class="meta-item muted">${esc(area)}</span>` : ''}
         ${matchId  ? `<span class="meta-item muted">#${esc(matchId)}</span>` : ''}
       </div>
     </div>
