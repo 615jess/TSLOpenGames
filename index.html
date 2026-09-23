@@ -364,10 +364,22 @@ async function loadGames() {
     if (leagueFilter === '') {
       const wanted = new URLSearchParams(location.search).get('league');
       if (wanted) {
-        // Match loosely: the sheet may say "JDL Fall 2026" where the link says "JDL".
-        const hit = [...new Set(games.map(g => gf(g, 'league')).filter(Boolean))]
-          .filter(l => l.toLowerCase().includes(wanted.toLowerCase()))[0];
-        leagueFilter = hit || wanted;
+        // Short codes first. Assignr spells these out in full — "TN Junior Development
+        // League", not "JDL" — so a plain substring match on the memorable name finds
+        // nothing. A link handed to referees has to work with the name they use.
+        const ALIASES = {
+          jdl: /junior development/i,
+          tsl: /state league|\btsl\b/i,
+          n1: /^n1$|national\s*1/i,
+          academy: /academy/i,
+        };
+        const leagues = [...new Set(games.map(g => gf(g, 'league')).filter(Boolean))];
+        const alias = ALIASES[wanted.trim().toLowerCase()];
+        const hit = (alias ? leagues.filter(l => alias.test(l))[0] : null)
+                 || leagues.filter(l => l.toLowerCase().includes(wanted.toLowerCase()))[0];
+        // A name that matches nothing falls back to the FULL board, not an empty one: a
+        // mistyped or stale link in someone's messages should still show them games.
+        leagueFilter = hit || '';
       }
     }
     renderBoard(games);
