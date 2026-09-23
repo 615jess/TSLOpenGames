@@ -38,6 +38,7 @@ Data flow:
 - **The nonce is not authentication.** It only stops a script POSTing blind at the `/exec` URL; anyone who loads the board has one. It is dropped after each submission so the next attempt fetches a fresh one.
 - **Every outcome is shown, including failure.** A game already filled reports as such and lists nearby same-day alternatives the script returned; a network error says so. Silence would leave a referee believing they have a game they do not have.
 - The script decides what auto-confirms (younger-age AR slots) and what waits for the assignor. The board only reports what came back — **do not reimplement that rule here**, it lives in the Apps Script.
+- **The instructions banner describes the on-board path, not the fallback.** It also states that a referee's name and email are **recorded with the request** — they are, on the Sheet. The old wording promised the opposite ("not stored or shared online"), which stopped being true the moment requests were recorded; if the storage model changes again, that line changes with it.
 - **There is no confirmation email, by design** — one mail per request was too much mail. The modal is therefore the referee's only record, and it must say so. It also reports the game the script **allocated**, taken from the response, not the card that was clicked: several near-identical games can be advertised as one listing, so the game number and even the field that come back may differ from what is on screen.
 
 ## Deployment
