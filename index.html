@@ -109,6 +109,23 @@
     margin-bottom: 20px; flex-wrap: wrap;
   }
   .board-title { font-size: 1.05rem; font-weight: 700; }
+  .league-filter {
+    max-width: 720px;
+    margin: 0 auto 10px;
+    padding: 0 14px;
+    font-size: 0.85rem;
+  }
+  .league-filter label { display: flex; align-items: center; gap: 8px; color: #64748b; }
+  .league-filter select {
+    flex: 1;
+    padding: 7px 9px;
+    border: 1px solid #d7dee8;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 0.85rem;
+    font-family: inherit;
+  }
+
   .count-badge {
     background: var(--accent); color: #ffffff;
     border-radius: 20px; padding: 2px 10px;
@@ -273,6 +290,8 @@
   <button class="btn primary" style="margin-top:20px" onclick="loadGames()">Try Again</button>
 </div>
 
+<div id="leagueFilter" class="league-filter" style="display:none"></div>
+
 <div id="board">
   <div class="board-meta">
     <span class="board-title" id="boardTitle">Open Games</span>
@@ -322,6 +341,9 @@ const CONFIG = {
 let allGames    = [];
 let selectedIds = new Set();
 let boardNonce  = null;
+// A league filter, so a referee can be sent to just the games they are ready for —
+// ?league=JDL is a sub-board without a second deployment to maintain.
+let leagueFilter = '';
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 window.addEventListener('load', loadGames);
@@ -339,12 +361,50 @@ async function loadGames() {
       Object.keys(g).forEach(k => { obj[k.toLowerCase().trim()] = String(g[k] ?? ''); });
       return obj;
     });
+    // A ?league= link wins on first load; after that the picker is in charge.
+    if (leagueFilter === '') {
+      const wanted = new URLSearchParams(location.search).get('league');
+      if (wanted) {
+        // Match loosely: the sheet may say "JDL Fall 2026" where the link says "JDL".
+        const hit = [...new Set(games.map(g => gf(g, 'league')).filter(Boolean))]
+          .filter(l => l.toLowerCase().includes(wanted.toLowerCase()))[0];
+        leagueFilter = hit || wanted;
+      }
+    }
     renderBoard(games);
   } catch (err) {
     showError(`Could not load the schedule (${err.message}). Please try refreshing.`);
   } finally {
     setRefreshSpinner(false);
   }
+}
+
+// ── League filter ──────────────────────────────────────────────────────────────
+// Built from whatever is actually on the board, so a new competition needs no code
+// change. Hidden entirely when every game is the same league — a filter with one option
+// is just clutter.
+function renderLeaguePicker(games) {
+  const box = document.getElementById('leagueFilter');
+  if (!box) return;
+  const leagues = [...new Set(games.map(g => gf(g, 'league')).filter(Boolean))].sort();
+  if (leagues.length < 2) { box.style.display = 'none'; return; }
+  box.style.display = '';
+
+  const counts = {};
+  games.forEach(g => { const l = gf(g, 'league'); if (l) counts[l] = (counts[l] || 0) + 1; });
+
+  box.innerHTML = `
+    <label>Competition
+      <select id="leagueSelect">
+        <option value="">All (${games.length})</option>
+        ${leagues.map(l => `<option value="${esc(l)}"${l === leagueFilter ? ' selected' : ''}>${esc(l)} (${counts[l]})</option>`).join('')}
+      </select>
+    </label>`;
+  document.getElementById('leagueSelect').addEventListener('change', e => {
+    leagueFilter = e.target.value;
+    clearSelection();
+    renderBoard(allGames);
+  });
 }
 
 // ── Field accessor ─────────────────────────────────────────────────────────────
@@ -360,6 +420,10 @@ function gf(game, ...keys) {
 // ── Render board ───────────────────────────────────────────────────────────────
 function renderBoard(games) {
   allGames = games;
+  renderLeaguePicker(games);
+  if (leagueFilter) {
+    games = games.filter(g => gf(g, 'league') === leagueFilter);
+  }
   selectedIds.clear();
 
   document.getElementById('boardTitle').textContent = CONFIG.boardTitle;
@@ -410,6 +474,7 @@ function buildCard(game) {
   const dt      = gf(game, 'start date/time', 'startdatetime', 'start date time', 'datetime', 'date');
   const field   = gf(game, 'field');
   const age     = gf(game, 'age group', 'agegroup');
+  const league  = gf(game, 'league');
   const matchId = gf(game, 'match id', 'matchid');
   const role    = gf(game, 'open roles', 'openroles', 'roles');
   const fee     = gf(game, 'fee');
@@ -432,6 +497,7 @@ function buildCard(game) {
       <div class="game-meta">
         ${field    ? `<span class="meta-item">${esc(field)}</span>`   : ''}
         ${age      ? `<span class="meta-item">${esc(age)}</span>`     : ''}
+        ${league   ? `<span class="meta-item">${esc(league)}</span>`  : ''}
         ${matchId  ? `<span class="meta-item muted">#${esc(matchId)}</span>` : ''}
       </div>
     </div>
