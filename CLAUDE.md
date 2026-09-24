@@ -18,7 +18,7 @@ Everything lives in `index.html` — HTML, CSS (in `<style>`), and JS (in `<scri
 Data flow:
 1. On load, `loadGames()` fetches JSON from a Google Apps Script Web App endpoint (`CONFIG.apiUrl`). That script reads the assignor's Google Sheet of open slots and returns an array of row objects.
 2. Keys are lowercased/normalized; each row gets a `_id` for selection tracking.
-3. `renderBoard()` groups games by venue and renders cards. Selection state lives in the `selectedIds` Set.
+3. `renderBoard()` groups games **by day, then venue** and renders cards. Day first is deliberate: venue-only grouping put Saturday and Sunday in the same block, separated by nothing but the time on each card, and referees kept requesting the wrong day. `gameDate()` builds the date with the local-date constructor, never `Date.parse` of an ISO string, so a Saturday evening game cannot slide into Sunday. Selection state lives in the `selectedIds` Set.
 4. `buildEmailBody()` / `buildTextBody()` compose the fallback message; `sendClaim()` / `sendText()` hand off to `mailto:` / `sms:`.
 5. `submitClaims()` is the on-board path: it fetches a nonce (`?nonce=1`), then POSTs one `{action:'claim', nonce, name, email, gameKey, role, hp}` per selected game and renders the per-game outcome back into the modal.
 

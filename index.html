@@ -115,6 +115,16 @@
     padding: 0 14px;
     font-size: 0.85rem;
   }
+  .day-group { margin-bottom: 26px; }
+  .day-label {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+    margin: 0 0 10px; padding: 8px 12px; border-radius: 8px;
+    background: #1b2229; color: #fff;
+    font-size: 1.05rem; font-weight: 700; letter-spacing: .01em;
+    position: sticky; top: 0; z-index: 4;
+  }
+  .day-label span { font-size: 0.8rem; font-weight: 500; opacity: .85; }
+
   .league-filter { display: flex; gap: 14px; flex-wrap: wrap; }
   .league-filter label { display: flex; align-items: center; gap: 8px; color: #64748b; flex: 1 1 220px; }
   .league-filter select {
@@ -404,6 +414,31 @@ async function loadGames() {
   }
 }
 
+// ── Days ───────────────────────────────────────────────────────────────────────
+// Sortable key and human label for a game's day, from whatever date shape the sheet
+// holds. Built with the local-date constructor, never Date.parse of an ISO string, so a
+// Saturday evening game cannot slide into Sunday on the way to the screen.
+function gameDate(game) {
+  const raw = String(gf(game, 'start date/time', 'startdatetime', 'start date time', 'datetime', 'date') || '');
+  let m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return new Date(+m[3], +m[1] - 1, +m[2]);
+  m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  const d = new Date(raw);
+  return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function dayKeyOf(game) {
+  const d = gameDate(game);
+  if (!d) return '9999-99-99';          // undated games sort last rather than first
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function dayLabelOf(game) {
+  const d = gameDate(game);
+  return d ? d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : 'Date unknown';
+}
+
 // ── League filter ──────────────────────────────────────────────────────────────
 // Built from whatever is actually on the board, so a new competition needs no code
 // change. Hidden entirely when every game is the same league — a filter with one option
@@ -482,22 +517,40 @@ function renderBoard(games) {
 
   document.getElementById('countBadge').textContent = games.length;
 
-  // Group by venue
-  const byVenue = new Map();
+  // Group by DAY first, then venue inside it. Venue-only grouping put Saturday and
+  // Sunday games in the same block, distinguished by nothing but the time on each card —
+  // referees kept asking for the wrong day.
+  const byDay = new Map();
   games.forEach(game => {
-    const v = gf(game, 'venue') || 'Unknown Venue';
-    if (!byVenue.has(v)) byVenue.set(v, []);
-    byVenue.get(v).push(game);
+    const key = dayKeyOf(game);
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key).push(game);
   });
 
   const container = document.getElementById('venueGroups');
   container.innerHTML = '';
-  byVenue.forEach((vGames, venue) => {
-    const grp = document.createElement('div');
-    grp.className = 'venue-group';
-    grp.innerHTML = `<div class="venue-label">${esc(venue)}<span class="venue-game-count"> — ${vGames.length} slot${vGames.length !== 1 ? 's' : ''}</span></div>`;
-    vGames.forEach(game => grp.appendChild(buildCard(game)));
-    container.appendChild(grp);
+
+  [...byDay.keys()].sort().forEach(dayKey => {
+    const dGames = byDay.get(dayKey);
+    const day = document.createElement('section');
+    day.className = 'day-group';
+    day.innerHTML = `<h2 class="day-label">${esc(dayLabelOf(dGames[0]))}
+      <span>${dGames.length} slot${dGames.length !== 1 ? 's' : ''}</span></h2>`;
+
+    const byVenue = new Map();
+    dGames.forEach(game => {
+      const v = gf(game, 'venue') || 'Unknown Venue';
+      if (!byVenue.has(v)) byVenue.set(v, []);
+      byVenue.get(v).push(game);
+    });
+    byVenue.forEach((vGames, venue) => {
+      const grp = document.createElement('div');
+      grp.className = 'venue-group';
+      grp.innerHTML = `<div class="venue-label">${esc(venue)}<span class="venue-game-count"> — ${vGames.length} slot${vGames.length !== 1 ? 's' : ''}</span></div>`;
+      vGames.forEach(game => grp.appendChild(buildCard(game)));
+      day.appendChild(grp);
+    });
+    container.appendChild(day);
   });
 
   showScreen('board');
