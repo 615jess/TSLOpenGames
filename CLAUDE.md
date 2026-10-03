@@ -41,9 +41,9 @@ Data flow:
 - **The instructions banner describes the on-board path, not the fallback.** It also states that a referee's name and email are **recorded with the request** — they are, on the Sheet. The old wording promised the opposite ("not stored or shared online"), which stopped being true the moment requests were recorded; if the storage model changes again, that line changes with it.
 - **There is no confirmation email, by design** — one mail per request was too much mail. The modal is therefore the referee's only record, and it must say so. It also reports the game the script **allocated**, taken from the response, not the card that was clicked: several near-identical games can be advertised as one listing, so the game number and even the field that come back may differ from what is on screen.
 
-## `speed.html` — speed claim
+## `speed.html` — speed request
 
-A lean one-tap sibling of `index.html` for games that need covering now. It reads `?speed=1` (the `Speed Claim` tab with live holds subtracted, plus a nonce), refreshes every 20 s, and POSTs `{action:'claim', speed:true, ...}`. Name/email are remembered in `localStorage` (guarded). Every claim holds its slot and waits for the assignor — the script decides, the page only reports. Same `CONFIG.apiUrl` as `index.html`; when copying to the WCSA board, change `CONFIG` there too.
+**Referee-facing text says "request", never "claim"** (decided 2026-10-02); internal names — the `Speed Claim` tab, `action:'claim'`, `speed:true` — are unchanged. The page carries an always-visible notice that a request does not guarantee the spot and is only confirmed by an Assignr assignment; keep it visible, not tucked into the first-run panel. A lean one-tap sibling of `index.html` for games that need covering now. It reads `?speed=1` (the `Speed Claim` tab with live holds subtracted, plus a nonce), refreshes every 20 s, and POSTs `{action:'claim', speed:true, ...}`. Name/email are remembered in `localStorage` (guarded). Every claim holds its slot and waits for the assignor — the script decides, the page only reports. Same `CONFIG.apiUrl` as `index.html`; when copying to the WCSA board, change `CONFIG` there too.
 
 ## Deployment
 
